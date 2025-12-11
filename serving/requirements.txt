@@ -1,5 +1,9 @@
 fastapi
 uvicorn
-scikit-learn
 pandas
 numpy
+scikit-learn
+sentence-transformers
+torch
+pypdf
+python-multipart
