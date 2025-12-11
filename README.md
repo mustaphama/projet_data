@@ -55,6 +55,44 @@ docker compose up --build
 
 ---
 
+# 🌿 Stratégie Git et Branchage
+
+### Structure des branches
+
+```
+main
+├── feature/scripts-pdf-preprocessing (Membre 1)
+├── feature/scripts-incremental-retrain (Membre 1)
+├── feature/api-health-endpoint (Membre 2)
+├── feature/api-feedback-trigger (Membre 2)
+├── feature/streamlit-webapp (Membre 3)
+├── feature/n8n-workflow (Membre 4)
+├── feature/docker-compose-orchestration (Membre 5)
+└── feature/evidently-monitoring (Membre 5)
+```
+
+## Workflow Git standard
+
+```bash
+# 1. Créer une nouvelle branche depuis main
+git checkout main
+git pull origin main
+git checkout -b feature/votre-feature
+
+# 2. Développer et faire des commits réguliers
+git add .
+git commit -m "feat: description courte et explicite"
+
+# 3. Pousser vers GitHub
+git push origin feature/votre-feature
+
+# 4. Synchro locale
+git checkout main
+git pull origin main
+```
+
+---
+
 # 🎯 Prochaines Étapes & Répartition des Tâches (5 Étudiants)
 
 ## 👤 **Membre 1 : Data Scientist & Core ML**
@@ -145,18 +183,6 @@ docker compose up --build
 
 ---
 
-## 📋 Checklist de Validation Globale
-
-- [ ] Tous les scripts locaux exécutés sans erreur (`init_model.py`, `init_prod_data.py`)
-- [ ] API démarrée et endpoints testés (curl ou Postman)
-- [ ] Webapp Streamlit fonctionnelle et connectée à l'API
-- [ ] Workflow n8n exécuté avec succès (Webhook → LLM → Email)
-- [ ] Monitoring Evidently génère un rapport
-- [ ] `docker compose up --build` fonctionne en une seule commande
-- [ ] README à jour avec les instructions finales
-
----
-
 ## 🔄 Communication Inter-Équipes
 
 | Membre | Dépend de | Fournit à |
@@ -176,3 +202,15 @@ docker compose up --build
 **Semaine 2** : Membre 3 développe la webapp, Membre 4 configure n8n.
 
 **Semaine 3** : Intégration complète, tests et monitoring, Membre 5 finalise la documentation.
+
+---
+
+## ✅ Checklist de Validation Globale
+
+- [ ] Tous les scripts locaux exécutés sans erreur (`init_model.py`, `init_prod_data.py`)
+- [ ] API démarrée et endpoints testés (curl ou Postman)
+- [ ] Webapp Streamlit fonctionnelle et connectée à l'API
+- [ ] Workflow n8n exécuté avec succès (Webhook → LLM → Email)
+- [ ] Monitoring Evidently génère un rapport
+- [ ] `docker compose up --build` fonctionne en une seule commande
+- [ ] README à jour avec les instructions finales
