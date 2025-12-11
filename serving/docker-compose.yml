@@ -1,0 +1,19 @@
+version: '3.8'
+
+networks:
+  prod_net:
+    driver: bridge
+
+services:
+  serving-api:
+    container_name: serving-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ../data:/data
+      - ../artifacts:/artifacts
+    ports:
+      - "8080:8080"
+    networks:
+      - prod_net
