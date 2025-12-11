@@ -30,6 +30,15 @@ def extract_text_from_pdf(pdf_path):
         print(f"⚠️ Erreur de lecture sur {pdf_path}: {e}")
         return ""
 
+def clean_text(text):
+    """Normalise les espaces dans le texte"""
+    import re
+    # Supprimer les espaces entre les caractères individuels (A L B I N -> ALBIN)
+    text = re.sub(r'(?<=[A-Za-zÀ-ÿ])\s(?=[A-Za-zÀ-ÿ])', '', text)
+    # Normaliser les espaces multiples
+    text = ' '.join(text.split())
+    return text.strip()
+
 # --- 1. CHARGEMENT DU MODÈLE ---
 model_name = 'paraphrase-multilingual-MiniLM-L12-v2'
 print(f"⏳ Chargement du modèle {model_name}...")
@@ -44,6 +53,7 @@ if not job_files:
 job_texts = []
 for job_path in job_files:
     job_text = extract_text_from_pdf(job_path)
+    job_text = clean_text(job_text)
     if len(job_text) > 50:
         job_texts.append(job_text)
         print(f"   ✅ Offre chargée: {os.path.basename(job_path)}")
@@ -65,6 +75,7 @@ for pdf_path in pdf_files:
     print(f"   -> Traitement de : {filename}")
     
     cv_text = extract_text_from_pdf(pdf_path)
+    cv_text = clean_text(cv_text)
     if len(cv_text) < 50:
         print(f"      ⚠️ Ignoré (Texte trop court ou illisible)")
         continue
