@@ -1,1 +1,6 @@
 cv_text,job_text,similarity_score,user_feedback,timestamp
+"Texte CV de test 1","Texte Job de test 1",0.85,True,2024-01-20T12:00:00
+"Texte CV de test 2","Texte Job de test 2",0.42,False,2024-01-20T12:05:00
+"Texte CV de test 3","Texte Job de test 3",0.12,False,2024-01-20T12:10:00
+"Texte CV de test 4","Texte Job de test 4",0.91,True,2024-01-20T12:15:00
+"Texte CV de test 5","Texte Job de test 5",0.55,True,2024-01-20T12:20:00
