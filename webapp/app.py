@@ -428,10 +428,25 @@ def tab_history():
             )
     
     with col_manage3:
-        if st.button("🗑️ Effacer l'historique", use_container_width=True):
-            if st.confirm("⚠️ Êtes-vous sûr ?"):
-                save_history([])
-                st.success("Historique supprimé")
+        if "confirm_clear" not in st.session_state:
+            st.session_state.confirm_clear = False
+
+        if st.session_state.confirm_clear:
+            st.warning("⚠️ Êtes-vous sûr ?")
+            col_yes, col_no = st.columns(2)
+            with col_yes:
+                if st.button("✅ Oui", use_container_width=True):
+                    save_history([])
+                    st.session_state.confirm_clear = False
+                    st.success("Historique supprimé")
+                    st.rerun()
+            with col_no:
+                if st.button("❌ Non", use_container_width=True):
+                    st.session_state.confirm_clear = False
+                    st.rerun()
+        else:
+            if st.button("🗑️ Effacer l'historique", use_container_width=True):
+                st.session_state.confirm_clear = True
                 st.rerun()
 
 # ============================================================================
