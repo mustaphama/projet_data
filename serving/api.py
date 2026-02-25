@@ -106,7 +106,8 @@ async def prediction_real(fichier_cv: UploadFile = File(...), id_offre: Optional
             texte_offre_raw = job_text
         elif id_offre:
             # Optionnel : recherche d'un fichier offre local par id (ex: 'offre_1.pdf')
-            chemin_offre = os.path.join(chemin_racine, "data", "jobs_corpus", f"{id_offre}.pdf")
+            nom_fichier = id_offre if id_offre.endswith('.pdf') else f"{id_offre}.pdf"
+            chemin_offre = os.path.join(chemin_racine, "data", "jobs_corpus", nom_fichier)
             if os.path.exists(chemin_offre):
                 with open(chemin_offre, "rb") as f:
                     texte_offre_raw = extraire_texte_pdf_bytes(f.read())

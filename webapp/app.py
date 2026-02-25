@@ -140,7 +140,13 @@ def tab_prediction():
     
     with col2:
         st.subheader("💼 Étape 2 : Sélectionner une offre")
-        job_options = ["dev_python.pdf", "data_scientist.pdf", "devops_engineer.pdf", "frontend_react.pdf"]
+        
+        # Lister les offres disponibles dans data/jobs_corpus
+        jobs_dir = DATA_PATH / "jobs_corpus"
+        job_options = [f.name for f in jobs_dir.glob("*.pdf")] if jobs_dir.exists() else []
+        if not job_options:
+            job_options = ["offre_1.pdf", "offre_2.pdf", "offre_3.pdf", "offre_4.pdf", "offre_5.pdf"]
+            
         selected_job = st.selectbox("Choisir une offre", job_options)
         
         st.info(f"Offre sélectionnée : **{selected_job}**")
