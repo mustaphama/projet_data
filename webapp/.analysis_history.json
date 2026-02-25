@@ -26,5 +26,33 @@
     "job_id": "offre_3.pdf",
     "score": 0.7095527648925781,
     "status": "pending"
+  },
+  {
+    "timestamp": "2026-02-25T16:58:48.678995",
+    "cv_name": "CV_FinEtudes_LLM.pdf",
+    "job_id": "offre_3.pdf",
+    "score": 0.7095527648925781,
+    "status": "pending"
+  },
+  {
+    "timestamp": "2026-02-25T17:03:37.413535",
+    "cv_name": "CV_FinEtudes_LLM.pdf",
+    "job_id": "offre_3.pdf",
+    "score": 0.7095527648925781,
+    "status": "pending"
+  },
+  {
+    "timestamp": "2026-02-25T17:06:33.399769",
+    "cv_name": "CV_FinEtudes_LLM.pdf",
+    "job_id": "offre_3.pdf",
+    "score": 0.7095527648925781,
+    "status": "pending"
+  },
+  {
+    "timestamp": "2026-02-25T17:18:39.094077",
+    "cv_name": "resume_albin.pdf",
+    "job_id": "offre_1.pdf",
+    "score": 0.5484572649002075,
+    "status": "direct_score"
   }
 ]

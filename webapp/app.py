@@ -101,13 +101,16 @@ def extract_cv_text(pdf_file):
         st.error(f"Erreur lors de l'extraction du PDF : {e}")
         return None
 
-def call_api_predict(cv_file, job_id):
+def call_api_predict(cv_file, job_id, trigger_n8n=True):
     """Appelle l'API de prédiction."""
     try:
         with st.spinner("Calcul de la similarité..."):
             files = {"fichier_cv": (cv_file.name, cv_file.getvalue(), "application/pdf")}
-            data = {"id_offre": job_id}
-            response = requests.post(f"{API_URL}/predict", files=files, data=data, timeout=10)
+            data = {
+                "id_offre": job_id,
+                "trigger_n8n": str(trigger_n8n).lower()
+            }
+            response = requests.post(f"{API_URL}/predict", files=files, data=data, timeout=15)
             
             if response.status_code == 200:
                 return response.json()
@@ -153,54 +156,72 @@ def tab_prediction():
     
     st.divider()
     
-    col_btn1, col_btn2, col_btn3 = st.columns(3)
-    with col_btn2:
-        if st.button("🚀 Lancer l'analyse", use_container_width=True, type="primary"):
+    col_btn1, col_btn2 = st.columns(2)
+    
+    with col_btn1:
+        # Bouton simple : Score seulement
+        if st.button("🔢 Calculer le score seulement", use_container_width=True):
             if uploaded_cv and selected_job:
-                result = call_api_predict(uploaded_cv, selected_job)
-                
+                result = call_api_predict(uploaded_cv, selected_job, trigger_n8n=False)
                 if result:
-                    score = result.get('similarity_score', 0)
-                    
-                    # Affichage du score
-                    st.markdown("---")
-                    col_score1, col_score2 = st.columns(2)
-                    
-                    with col_score1:
-                        st.markdown(f"### Score de similarité")
-                        progress_val = min(max(score, 0), 1)
-                        st.progress(progress_val)
-                        st.markdown(f"<div class='highlight-score'>{score:.2%}</div>", unsafe_allow_html=True)
-                    
-                    with col_score2:
-                        st.markdown("### 📊 Interprétation")
-                        if score >= 0.8:
-                            st.success("🟢 **Excellente correspondance**")
-                        elif score >= 0.6:
-                            st.info("🟡 **Bonne correspondance**")
-                        else:
-                            st.warning("🔴 **Correspondance faible**")
-                    
-                    # Sauvegarde dans l'historique
-                    history = load_history()
-                    new_entry = {
-                        "timestamp": datetime.now().isoformat(),
-                        "cv_name": uploaded_cv.name,
-                        "job_id": selected_job,
-                        "score": float(score),
-                        "status": "pending"
-                    }
-                    history.append(new_entry)
-                    save_history(history)
-                    
-                    st.success("✅ Analyse sauvegardée dans l'historique")
-                    
-                    # Feedback workflow
-                    st.markdown("---")
-                    st.markdown("### 📨 Workflow Validation")
-                    st.info("Un email de validation a été envoyé. Cliquez sur le lien pour confirmer.")
+                    display_prediction_results(result, uploaded_cv, selected_job, triggered_n8n=False)
             else:
                 st.warning("⚠️ Veuillez sélectionner un CV et une offre")
+
+    with col_btn2:
+        # Bouton complet : Score + n8n
+        if st.button("🚀 Lancer l'analyse et notification", use_container_width=True, type="primary"):
+            if uploaded_cv and selected_job:
+                result = call_api_predict(uploaded_cv, selected_job, trigger_n8n=True)
+                if result:
+                    display_prediction_results(result, uploaded_cv, selected_job, triggered_n8n=True)
+            else:
+                st.warning("⚠️ Veuillez sélectionner un CV et une offre")
+
+def display_prediction_results(result, uploaded_cv, selected_job, triggered_n8n=True):
+    """Affiche les résultats de la prédiction et gère l'historique."""
+    score = result.get('similarity_score', 0)
+    
+    # Affichage du score
+    st.markdown("---")
+    col_score1, col_score2 = st.columns(2)
+    
+    with col_score1:
+        st.markdown(f"### Score de similarité")
+        progress_val = min(max(score, 0), 1)
+        st.progress(progress_val)
+        st.markdown(f"<div class='highlight-score'>{score:.2%}</div>", unsafe_allow_html=True)
+    
+    with col_score2:
+        st.markdown("### 📊 Interprétation")
+        if score >= 0.8:
+            st.success("🟢 **Excellente correspondance**")
+        elif score >= 0.6:
+            st.info("🟡 **Bonne correspondance**")
+        else:
+            st.warning("🔴 **Correspondance faible**")
+    
+    # Sauvegarde dans l'historique
+    history = load_history()
+    new_entry = {
+        "timestamp": datetime.now().isoformat(),
+        "cv_name": uploaded_cv.name,
+        "job_id": selected_job,
+        "score": float(score),
+        "status": "pending" if triggered_n8n else "direct_score"
+    }
+    history.append(new_entry)
+    save_history(history)
+    
+    st.success("✅ Analyse sauvegardée dans l'historique")
+    
+    # Feedback workflow seulement si déclenché
+    if triggered_n8n:
+        st.markdown("---")
+        st.markdown("### 📨 Workflow Validation")
+        st.info("Un email de validation a été envoyé. Cliquez sur le lien pour confirmer.")
+    else:
+        st.info("ℹ️ Note : Le workflow d'explication n8n n'a pas été lancé pour ce calcul rapide.")
 
 # ============================================================================
 # 📈 ONGLET 2 : VISUALISATION PCA 2D

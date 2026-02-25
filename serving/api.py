@@ -7,6 +7,8 @@ import re
 import csv
 import subprocess
 import requests
+import uuid
+import json
 from typing import Optional
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 import pdfplumber
@@ -14,6 +16,7 @@ import pandas as pd
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+from pydantic import BaseModel
 
 # Config
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +25,7 @@ logger = logging.getLogger(__name__)
 chemin_racine = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOSSER_ARTIFACTS = os.path.join(chemin_racine, 'artifacts')
 CHEMIN_PICKLE_MODELE = os.path.join(DOSSER_ARTIFACTS, 'model.pickle')
+CHEMIN_PENDING_PREDICTIONS = os.path.join(chemin_racine, "data", "pending_predictions.json")
 DEFAULT_MODEL_NAME = 'paraphrase-multilingual-MiniLM-L12-v2'
 
 # URL du webhook n8n (ex: http://localhost:5678/webhook/explain-score)
@@ -29,6 +33,39 @@ N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'http://localhost:5678/webho
 N8N_TIMEOUT = 5  # sec pour l'appel n8n
 
 app = FastAPI(title="Serving API - Real Matching")
+
+def save_pending_prediction(prediction_id, data):
+    try:
+        current_data = {}
+        os.makedirs(os.path.dirname(CHEMIN_PENDING_PREDICTIONS), exist_ok=True)
+        if os.path.exists(CHEMIN_PENDING_PREDICTIONS):
+            with open(CHEMIN_PENDING_PREDICTIONS, 'r', encoding='utf-8') as f:
+                try:
+                    current_data = json.load(f)
+                except:
+                    current_data = {}
+        current_data[prediction_id] = data
+        with open(CHEMIN_PENDING_PREDICTIONS, 'w', encoding='utf-8') as f:
+            json.dump(current_data, f, indent=4)
+    except Exception as e:
+        logger.error(f"Error saving pending prediction: {e}")
+
+def get_pending_prediction(prediction_id):
+    try:
+        if os.path.exists(CHEMIN_PENDING_PREDICTIONS):
+            with open(CHEMIN_PENDING_PREDICTIONS, 'r', encoding='utf-8') as f:
+                current_data = json.load(f)
+                return current_data.get(prediction_id)
+    except Exception as e:
+        logger.error(f"Error reading pending prediction: {e}")
+    return None
+
+class RequeteFeedback(BaseModel):
+    user_feedback: bool
+    prediction_id: Optional[str] = None
+    cv_text: str = ""
+    job_text: str = ""
+    similarity_score: float = 0.0
 
 # mots vides simple (tu peux compléter)
 MOTS_VIDES_FR = {"le", "la", "les", "un", "une", "des", "et", "en", "pour", "par", "dans", "sur", "avec"}
@@ -91,11 +128,17 @@ def compute_similarity(text_a: str, text_b: str) -> float:
     return score
 
 @app.post("/predict")
-async def prediction_real(fichier_cv: UploadFile = File(...), id_offre: Optional[str] = Form(None), job_text: Optional[str] = Form(None)):
+async def prediction_real(
+    fichier_cv: UploadFile = File(...), 
+    id_offre: Optional[str] = Form(None), 
+    job_text: Optional[str] = Form(None),
+    trigger_n8n: bool = Form(True)
+):
     """
     Calcule le score réel entre le CV uploadé et une offre.
-    - id_offre : si fourni, tu peux remplacer job_text par la lecture d'un fichier d'offres côté serveur (extension possible)
+    - id_offre : si fourni, tu peux remplacer job_text par la lecture d'un fichier d'offres côté serveur
     - job_text : texte de l'offre envoyé dans le form
+    - trigger_n8n : si True, lance le workflow d'explication n8n
     """
     try:
         contenu = await fichier_cv.read()
@@ -108,34 +151,44 @@ async def prediction_real(fichier_cv: UploadFile = File(...), id_offre: Optional
         if job_text:
             texte_offre_raw = job_text
         elif id_offre:
-            # Optionnel : recherche d'un fichier offre local par id (ex: 'offre_1.pdf')
             nom_fichier = id_offre if id_offre.endswith('.pdf') else f"{id_offre}.pdf"
             chemin_offre = os.path.join(chemin_racine, "data", "jobs_corpus", nom_fichier)
             if os.path.exists(chemin_offre):
                 with open(chemin_offre, "rb") as f:
                     texte_offre_raw = extraire_texte_pdf_bytes(f.read())
             else:
-                texte_offre_raw = f"Offre ID: {id_offre}"  # fallback minimal
+                texte_offre_raw = f"Offre ID: {id_offre}"
         else:
             raise HTTPException(status_code=400, detail="Fournir job_text ou id_offre")
 
         texte_offre = nettoyer_texte(texte_offre_raw)
         score = compute_similarity(texte_cv, texte_offre)
 
-        # Appel vers n8n pour demander l'explication (le workflow n8n fait l'explication)
-        payload = {
-            "cv_text": texte_cv_raw,     # envoi le texte brut si tu veux que n8n/LLM voit plus de contexte
+        # Générer un ID unique pour cette prédiction
+        pred_id = str(uuid.uuid4())
+        save_pending_prediction(pred_id, {
+            "cv_text": texte_cv_raw,
             "job_text": texte_offre_raw,
             "score": score
-        }
-        try:
-            resp = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=N8N_TIMEOUT)
-            if resp.status_code >= 400:
-                logger.warning(f"n8n webhook retourné {resp.status_code}: {resp.text}")
-        except Exception as e:
-            logger.warning(f"Impossible d'appeler n8n webhook ({e}) - l'explication via n8n peut ne pas être déclenchée")
+        })
+
+        # Appel vers n8n seulement si demandé
+        if trigger_n8n:
+            payload = {
+                "prediction_id": pred_id,
+                "cv_text": texte_cv_raw,
+                "job_text": texte_offre_raw,
+                "score": score
+            }
+            try:
+                resp = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=N8N_TIMEOUT)
+                if resp.status_code >= 400:
+                    logger.warning(f"n8n webhook retourné {resp.status_code}: {resp.text}")
+            except Exception as e:
+                logger.warning(f"Impossible d'appeler n8n webhook ({e})")
 
         return {
+            "prediction_id": pred_id,
             "similarity_score": score,
             "message": "Score calculé avec embeddings. Explication déclenchée via n8n (si reachable).",
             "cv_text_excerpt": texte_cv[:1000],
@@ -147,27 +200,31 @@ async def prediction_real(fichier_cv: UploadFile = File(...), id_offre: Optional
         logger.exception("Erreur dans /predict")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Endpoint de feedback conservé (n8n peut poster ici après validation humaine)
-from pydantic import BaseModel
-class RequeteFeedback(BaseModel):
-    user_feedback: bool
-    cv_text: str = ""
-    job_text: str = ""
-    similarity_score: float = 0.0
-    
-
-# Seuil de réentraînement
-SEUIL_K = 2
-
+# Endpoint de feedback
 @app.post("/feedback")
 def recevoir_feedback(donnees: RequeteFeedback):
     chemin_prod = os.path.join(chemin_racine, "data", "prod_data.csv")
     os.makedirs(os.path.join(chemin_racine, "data"), exist_ok=True)
     
+    # Si on a un prediction_id, on récupère les textes complets stockés lors du /predict
+    cv_text = donnees.cv_text
+    job_text = donnees.job_text
+    score = donnees.similarity_score
+
+    if donnees.prediction_id:
+        pending = get_pending_prediction(donnees.prediction_id)
+        if pending:
+            cv_text = pending.get("cv_text", cv_text)
+            job_text = pending.get("job_text", job_text)
+            score = pending.get("score", score)
+            logger.info(f"Données récupérées pour prediction_id: {donnees.prediction_id}")
+        else:
+            logger.warning(f"prediction_id: {donnees.prediction_id} non trouvé dans le stockage temporaire")
+
     nouvelle_ligne = {
-        'cv_text': donnees.cv_text,
-        'job_text': donnees.job_text,
-        'similarity_score': donnees.similarity_score,
+        'cv_text': cv_text,
+        'job_text': job_text,
+        'similarity_score': score,
         'user_feedback': donnees.user_feedback,
         'timestamp': pd.Timestamp.now().isoformat()
     }
@@ -213,4 +270,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     host = os.environ.get("HOST", "127.0.0.1")
     logger.info(f"Démarrage uvicorn sur {host}:{port}")
-    uvicorn.run(app, host=host, port=port, reload=False)
+    uvicorn.run("api:app", host="127.0.0.1", port=8000, reload=True)

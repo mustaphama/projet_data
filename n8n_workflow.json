@@ -21,7 +21,7 @@
       "parameters": {
         "sendTo": "albin45am@gmail.com",
         "subject": "=Analyse CV - Score : {{ $('Webhook Streamlit').item.json.body.score }} \n",
-        "message": "={{ $json.text }} \n\n{{ $json.text }} \n\n<p>D'accord avec ce matching ?</p>\n\n<a href=\"http://localhost:5678/webhook/bfa04403-f962-44b0-813b-03fa5005c402?decision=true&score={{ $('Webhook Streamlit').item.json.body.score }}&job={{ $('Webhook Streamlit').item.json.body.job_text.urlEncode() }}&cv={{ $('Webhook Streamlit').item.json.body.cv_text.urlEncode() }}\" \n   style=\"background-color: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;\">\n   ✅ OUI, Valider\n</a>\n\n<br><br>\n\n<a href=\"http://localhost:5678/webhook/bfa04403-f962-44b0-813b-03fa5005c402?decision=false&score={{ $('Webhook Streamlit').item.json.body.score }}&job={{ $('Webhook Streamlit').item.json.body.job_text.urlEncode() }}&cv={{ $('Webhook Streamlit').item.json.body.cv_text.urlEncode() }}\" \n   style=\"background-color: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;\">\n   ❌ NON, Rejeter\n</a>",
+        "message": "={{ $json.text }} \n\n<p>D'accord avec ce matching ?</p>\n\n<a href=\"http://localhost:5678/webhook/bfa04403-f962-44b0-813b-03fa5005c402?decision=true&id={{ $('Webhook Streamlit').item.json.body.prediction_id }}\" \n   style=\"background-color: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;\">\n   ✅ OUI, Valider\n</a>\n\n<br><br>\n\n<a href=\"http://localhost:5678/webhook/bfa04403-f962-44b0-813b-03fa5005c402?decision=false&id={{ $('Webhook Streamlit').item.json.body.prediction_id }}\" \n   style=\"background-color: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;\">\n   ❌ NON, Rejeter\n</a>",
         "options": {}
       },
       "name": "Gmail",
@@ -102,16 +102,8 @@
               "value": "={{ $json.query.decision == \"true\" }}"
             },
             {
-              "name": "cv_text",
-              "value": "={{ $json.query.cv }}"
-            },
-            {
-              "name": "job_text",
-              "value": "={{ $json.query.job }}"
-            },
-            {
-              "name": "similarity_score",
-              "value": "={{ parseFloat($json.query.score) }}"
+              "name": "prediction_id",
+              "value": "={{ $json.query.id }}"
             }
           ]
         },
