@@ -1,9 +1,5 @@
 version: '3.8'
 
-networks:
-  prod_net:
-    driver: bridge
-
 services:
   serving-api:
     container_name: serving-api
@@ -11,9 +7,17 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ../data:/data
-      - ../artifacts:/artifacts
+      - ../data:/app/data
+      - ../artifacts:/app/artifacts
     ports:
       - "8080:8080"
+    environment:
+      # On dit à l'API de taper sur le conteneur n8n
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/explain-score
     networks:
-      - prod_net
+      - shared_network
+
+networks:
+  shared_network:
+    name: mon_reseau_projet
+    driver: bridge

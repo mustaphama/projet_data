@@ -1,0 +1,15 @@
+{
+  "id": "8ed2c53b-463a-4d21-bffe-a6b96c6bc4c1",
+  "name": "Projet Data - Monitoring",
+  "description": "Monitoring du Data Drift et des performances [cite: 150]",
+  "dashboard": {
+    "name": "Projet Data - Monitoring",
+    "panels": [],
+    "tabs": [],
+    "tab_id_to_panel_ids": {}
+  },
+  "team_id": null,
+  "date_from": null,
+  "date_to": null,
+  "created_at": "2026-02-25T21:09:13.760756"
+}
