@@ -4,10 +4,13 @@ import glob
 import pickle
 import logging
 import re
+import csv
+import subprocess
 import requests
 from typing import Optional
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 import pdfplumber
+import pandas as pd
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -151,50 +154,63 @@ class RequeteFeedback(BaseModel):
     cv_text: str = ""
     job_text: str = ""
     similarity_score: float = 0.0
+    
+
+# Seuil de réentraînement
+SEUIL_K = 2
 
 @app.post("/feedback")
 def recevoir_feedback(donnees: RequeteFeedback):
-    # Enregistrement minimal: append to data/prod_data.csv
+    chemin_prod = os.path.join(chemin_racine, "data", "prod_data.csv")
+    os.makedirs(os.path.join(chemin_racine, "data"), exist_ok=True)
+    
+    nouvelle_ligne = {
+        'cv_text': donnees.cv_text,
+        'job_text': donnees.job_text,
+        'similarity_score': donnees.similarity_score,
+        'user_feedback': donnees.user_feedback,
+        'timestamp': pd.Timestamp.now().isoformat()
+    }
+    
     try:
-        import pandas as pd
-        chemin_prod = os.path.join(chemin_racine, "data", "prod_data.csv")
-        row = {
-            "cv_text": donnees.cv_text,
-            "job_text": donnees.job_text,
-            "similarity_score": donnees.similarity_score,
-            "user_feedback": donnees.user_feedback,
-            "timestamp": pd.Timestamp.now().isoformat()
-        }
-        if os.path.exists(chemin_prod):
-            df = pd.read_csv(chemin_prod)
-            df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
-        else:
-            df = pd.DataFrame([row])
-        df.to_csv(chemin_prod, index=False)
-        logger.info("Feedback reçu et enregistré.")
-        return {"statut": "success"}
+        fichier_existe = os.path.isfile(chemin_prod)
+        with open(chemin_prod, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=nouvelle_ligne.keys())
+            if not fichier_existe:
+                writer.writeheader()
+            writer.writerow(nouvelle_ligne)
+        logger.info(f"Feedback enregistré dans {chemin_prod}")
     except Exception as e:
-        logger.exception("Erreur lors de l'enregistrement du feedback")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Erreur lors de l'écriture du feedback CSV")
+        return {"statut": "erreur", "message": str(e)}
+
+    # -- LOGIQUE DE SEUIL DE RÉENTRAÎNEMENT --
+    try:
+        df_prod = pd.read_csv(chemin_prod)
+        nb_lignes = len(df_prod)
+        logger.info(f"Total des données en production : {nb_lignes}")
+        
+        if nb_lignes > 0 and nb_lignes % SEUIL_K == 0:
+            logger.info(f"Seuil de {SEUIL_K} atteint. Lancement du réentraînement automatique.")
+            chemin_script = os.path.join(chemin_racine, "scripts", "retrain_model.py")
+            subprocess.run(["python", chemin_script], check=True)
+            
+            # Rechargement à chaud du modèle après entraînement
+            global MODELE_NLP
+            MODELE_NLP = load_model()
+            logger.info("Réentraînement terminé et modèle mis à jour en production !")
+            
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Erreur lors du script de réentraînement : {e}")
+    except Exception as e:
+        logger.error(f"Erreur inattendue : {e}")
+
+    return {"statut": "success", "message": "Feedback enregistré"}
 
 
 if __name__ == "__main__":
-    # Démarre un serveur Uvicorn quand ce module est exécuté directement.
-    # Contrôles via variables d'environnement : PORT et UVICORN_RELOAD (valeur '1' pour activer reload)
-    try:
-        import uvicorn
-        port = int(os.environ.get("PORT", 8000))
-        reload_flag = os.environ.get("UVICORN_RELOAD", "0") == "1"
-        host = os.environ.get("HOST", "127.0.0.1")
-        logger.info(f"Démarrage uvicorn sur {host}:{port} (reload requested={reload_flag})")
-        # Si on exécute le script directement, il est plus fiable de passer l'objet app à uvicorn.
-        # Le reloader d'uvicorn nécessite d'importer le module par nom (string). Pour éviter
-        # le ModuleNotFoundError lorsque l'on exécute `python serving/api.py`, on désactive
-        # automatique le reload ici et on recommande d'utiliser la commande uvicorn CLI
-        # si le reloader est nécessaire.
-        if reload_flag:
-            logger.warning("Reload demandé mais désactivé lorsque le script est exécuté directement.\n"
-                           "Pour utiliser reload, lancez: uvicorn serving.api:app --reload --port {port}")
-        uvicorn.run(app, host=host, port=port, reload=False)
-    except Exception as e:
-        logger.exception("Erreur lors du démarrage du serveur Uvicorn: %s", e)
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    host = os.environ.get("HOST", "127.0.0.1")
+    logger.info(f"Démarrage uvicorn sur {host}:{port}")
+    uvicorn.run(app, host=host, port=port, reload=False)
