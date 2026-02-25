@@ -1,0 +1,3 @@
+pandas
+evidently>=0.4.15
+scikit-learn

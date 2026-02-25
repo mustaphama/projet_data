@@ -39,8 +39,8 @@ Ce projet a pour objectif d'automatiser le processus de matching entre des CV (f
   - [ ] Test de la boucle de feedback Gemini -> Gmail.
 - **Fonctionnement** : n8n reçoit les données, Gemini explique le score, validation par email.
 
-### Membre 5 : DevOps & Monitoring
-- **Statut** : 🛠️ En cours (Squelette)
+### Membre 5 (Mustapha) : DevOps & Monitoring
+- **Statut** : 🛠️ En cours (Test)
 - **Objectifs à venir** :
   - [ ] Analyse de drift avec `evidently` dans `reporting/project.py`.
   - [ ] Préparation des Dockerfiles (Backend & Frontend).
