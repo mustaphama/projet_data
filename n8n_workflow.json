@@ -1,0 +1,188 @@
+{
+  "name": "projet_data_2",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "explain-score",
+        "options": {}
+      },
+      "name": "Webhook Streamlit",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        16
+      ],
+      "id": "7895a8c2-413a-4d31-9e18-81a6bfb1b858",
+      "webhookId": "44169d6c-7d84-4217-8818-8cfa6286762e"
+    },
+    {
+      "parameters": {
+        "sendTo": "albin45am@gmail.com",
+        "subject": "=Analyse CV - Score : {{ $('Webhook Streamlit').item.json.body.score }} \n",
+        "message": "={{ $json.text }} \n\n{{ $json.text }} \n\n<p>D'accord avec ce matching ?</p>\n\n<a href=\"http://localhost:5678/webhook/bfa04403-f962-44b0-813b-03fa5005c402?decision=true&score={{ $('Webhook Streamlit').item.json.body.score }}&job={{ $('Webhook Streamlit').item.json.body.job_text.urlEncode() }}&cv={{ $('Webhook Streamlit').item.json.body.cv_text.urlEncode() }}\" \n   style=\"background-color: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;\">\n   ✅ OUI, Valider\n</a>\n\n<br><br>\n\n<a href=\"http://localhost:5678/webhook/bfa04403-f962-44b0-813b-03fa5005c402?decision=false&score={{ $('Webhook Streamlit').item.json.body.score }}&job={{ $('Webhook Streamlit').item.json.body.job_text.urlEncode() }}&cv={{ $('Webhook Streamlit').item.json.body.cv_text.urlEncode() }}\" \n   style=\"background-color: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;\">\n   ❌ NON, Rejeter\n</a>",
+        "options": {}
+      },
+      "name": "Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        368,
+        0
+      ],
+      "id": "034f2926-ad43-44ca-8a8a-d2720f26efd0",
+      "webhookId": "826ccc6d-30e3-446a-b7fc-474aecf15f07",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ZmKf1R1BoczbSy5a",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        0,
+        192
+      ],
+      "id": "7ae19397-8d05-478d-bfe2-c3025bfe06fb",
+      "name": "Google Gemini Chat Model",
+      "notesInFlow": false,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "k6lvrovjHYNzR62m",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=En tant qu'expert en recrutement, explique pourquoi le CV et l'offre d'emploi ont un score de match de {{ $json.body.score }}.\nCV: {{ $json.body.cv_text }}\nJob: {{ $json.body.job_text }}\nFais une réponse courte et professionnelle.",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        0,
+        0
+      ],
+      "id": "dcdd3409-a187-451e-8fca-c34359c5bb01",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "path": "bfa04403-f962-44b0-813b-03fa5005c402",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -448,
+        320
+      ],
+      "id": "ed19aaf5-cb58-43bf-941f-30324377932d",
+      "name": "Validation Webhook",
+      "webhookId": "bfa04403-f962-44b0-813b-03fa5005c402"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/feedback",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_feedback",
+              "value": "={{ $json.query.decision == \"true\" }}"
+            },
+            {
+              "name": "cv_text",
+              "value": "={{ $json.query.cv }}"
+            },
+            {
+              "name": "job_text",
+              "value": "={{ $json.query.job }}"
+            },
+            {
+              "name": "similarity_score",
+              "value": "={{ parseFloat($json.query.score) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -240,
+        320
+      ],
+      "id": "eccb0011-73b4-449f-a2c9-8bd2b33e857c",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Streamlit": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b1515924-7892-4029-a910-b9ff64bcec45",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "633dd948ac5f9874784fd3a4a80c253243447e09f4771222b716b101b5448ce9"
+  },
+  "id": "zWbckgqzv5VCBZkI",
+  "tags": []
+}
