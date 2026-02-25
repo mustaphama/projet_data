@@ -12,5 +12,40 @@
     "job_id": "dev_python.pdf",
     "score": 0.75,
     "status": "pending"
+  },
+  {
+    "timestamp": "2026-02-25T13:43:27.122828",
+    "cv_name": "resume_albin.pdf",
+    "job_id": "dev_python.pdf",
+    "score": 0.75,
+    "status": "pending"
+  },
+  {
+    "timestamp": "2026-02-25T13:47:04.628573",
+    "cv_name": "resume_albin.pdf",
+    "job_id": "dev_python.pdf",
+    "score": 0.75,
+    "status": "pending"
+  },
+  {
+    "timestamp": "2026-02-25T14:03:18.701631",
+    "cv_name": "resume_albin.pdf",
+    "job_id": "dev_python.pdf",
+    "score": 0.75,
+    "status": "pending"
+  },
+  {
+    "timestamp": "2026-02-25T14:05:18.218770",
+    "cv_name": "resume_albin.pdf",
+    "job_id": "offre_1.pdf",
+    "score": 0.75,
+    "status": "pending"
+  },
+  {
+    "timestamp": "2026-02-25T14:11:36.186422",
+    "cv_name": "resume_albin.pdf",
+    "job_id": "offre_1.pdf",
+    "score": 0.5484572649002075,
+    "status": "pending"
   }
 ]
