@@ -24,8 +24,8 @@ st.set_page_config(
 )
 
 # Configuration
-API_URL = "http://localhost:8080"
-#API_URL = "http://serving-api:8080"
+#API_URL = "http://localhost:8080"
+API_URL = "http://serving-api:8080"
 ARTIFACTS_PATH = Path("artifacts")
 DATA_PATH = Path("data")
 HISTORY_FILE = "webapp/.analysis_history.json"

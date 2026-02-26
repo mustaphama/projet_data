@@ -22,8 +22,6 @@ from pydantic import BaseModel
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-global MODELE_NLP, PCA_MODELE
-
 SEUIL_K = 5
 
 chemin_racine = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -107,7 +105,7 @@ def load_model():
     return SentenceTransformer(DEFAULT_MODEL_NAME)
 
 MODELE_NLP = load_model()
-
+PCA_MODELE = load_pca()
 # utilitaires extraction/cleanup (repris et simplifiés de scripts/init_model.py)
 def extraire_texte_pdf_bytes(contenu_bytes: bytes) -> str:
     try:
@@ -223,6 +221,8 @@ def health_check():
 # Endpoint de feedback
 @app.post("/feedback")
 def recevoir_feedback(donnees: RequeteFeedback):
+    global MODELE_NLP, PCA_MODELE
+
     chemin_prod = os.path.join(chemin_racine, "data", "prod_data.csv")
     os.makedirs(os.path.join(chemin_racine, "data"), exist_ok=True)
     

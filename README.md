@@ -112,3 +112,14 @@ projet_data/
 
 docker volume create n8n_data
 docker run -it --rm --name n8n -p 5678:5678 -v n8n_data:/home/node/.n8n docker.n8n.io/n8nio/n8n
+
+
+commande de génération de rapport:
+```
+docker exec evidently-reporting python project.py
+```
+
+commande pour lancer n8n  correctement:
+```
+docker run -d --name n8n -p 5678:5678 --network mon_reseau_projet -v n8n_data:/home/node/.n8n docker.n8n.io/n8nio/n8n
+```
