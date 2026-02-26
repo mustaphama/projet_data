@@ -12,6 +12,10 @@ services:
       - shared_network
     environment:
       - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/app                      # AJOUT : Monte le code en temps réel
+      - ../data:/app/data
+      - ../artifacts:/app/artifacts
 
 networks:
   shared_network:

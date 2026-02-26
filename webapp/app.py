@@ -26,9 +26,10 @@ st.set_page_config(
 # Configuration
 #API_URL = "http://localhost:8080"
 API_URL = "http://serving-api:8080"
-ARTIFACTS_PATH = Path("artifacts")
-DATA_PATH = Path("data")
-HISTORY_FILE = "webapp/.analysis_history.json"
+# Modifie ces lignes vers la ligne 32 :
+ARTIFACTS_PATH = Path("/app/artifacts")  # Chemin absolu vu par le ls
+DATA_PATH = Path("/app/data")            # Chemin absolu vu par le ls
+HISTORY_FILE = "/app/.analysis_history.json" # Correction du chemin interne
 
 # Styles personnalisés
 st.markdown("""
