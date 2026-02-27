@@ -12,7 +12,6 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # On dit à l'API de taper sur le conteneur n8n
       - N8N_WEBHOOK_URL=http://n8n:5678/webhook/explain-score
     networks:
       - shared_network

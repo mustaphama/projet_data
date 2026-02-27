@@ -72,12 +72,17 @@ Pour tester la boucle de matching et feedback avec n8n, lancez les deux commande
 
 **A. Serveur Backend (FastAPI)**
 ```bash
-python serving/api.py
+docker compose -f serving/docker-compose.yml up
 ```
 
 **B. Application Frontend (Streamlit)**
 ```bash
-streamlit run webapp/app.py
+docker compose -f webapp/docker-compose.yml up
+```
+
+**C. Monitoring (Evidently)**
+```bash
+docker compose -f monitoring/docker-compose.yml up
 ```
 
 ---

@@ -9,7 +9,5 @@ services:
     ports:
       - "8082:8082"
     volumes:
-      # On remonte d'un cran (..) pour accéder au dossier data du projet
       - ../data:/app/data
-      # On sauvegarde le workspace evidently localement pour ne pas le perdre
       - ./workspace:/app/workspace
