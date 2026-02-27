@@ -54,5 +54,26 @@
     "job_id": "offre_1.pdf",
     "score": 0.5484572649002075,
     "status": "direct_score"
+  },
+  {
+    "timestamp": "2026-02-26T07:37:15.826759",
+    "cv_name": "cv boulanger.pdf",
+    "job_id": "offre_2.pdf",
+    "score": 0.34723615646362305,
+    "status": "direct_score"
+  },
+  {
+    "timestamp": "2026-02-26T07:37:31.205620",
+    "cv_name": "cv_2.pdf",
+    "job_id": "offre_2.pdf",
+    "score": 0.6149600744247437,
+    "status": "direct_score"
+  },
+  {
+    "timestamp": "2026-02-26T07:37:39.770960",
+    "cv_name": "cv_2.pdf",
+    "job_id": "offre_2.pdf",
+    "score": 0.6149600744247437,
+    "status": "pending"
   }
 ]

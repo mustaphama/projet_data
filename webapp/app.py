@@ -12,10 +12,6 @@ from pathlib import Path
 import io
 import pdfplumber
 
-# ============================================================================
-# 📊 CONFIGURATION DE L'APPLICATION
-# ============================================================================
-
 st.set_page_config(
     page_title="Dashboard Matching CV-Offres",
     page_icon="🎯",
@@ -23,13 +19,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Configuration
-API_URL = "http://localhost:8000"
-ARTIFACTS_PATH = Path("artifacts")
-DATA_PATH = Path("data")
-HISTORY_FILE = "webapp/.analysis_history.json"
 
-# Styles personnalisés
+API_URL = "http://serving-api:8080"
+
+ARTIFACTS_PATH = Path("/app/artifacts")  
+DATA_PATH = Path("/app/data")           
+HISTORY_FILE = "/app/.analysis_history.json" 
+
 st.markdown("""
 <style>
     .metric-card {
@@ -45,10 +41,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-
-# ============================================================================
-# 🔧 UTILITAIRES
-# ============================================================================
 
 def load_pca_data():
     """Charge les données PCA et les embeddings."""
@@ -121,10 +113,6 @@ def call_api_predict(cv_file, job_id, trigger_n8n=True):
         st.error(f"Erreur de connexion à l'API : {e}")
         return None
 
-# ============================================================================
-# 📋 ONGLET 1 : PRÉDICTION ET SCORING
-# ============================================================================
-
 def tab_prediction():
     st.header("🎯 Prédiction de Score de Matching")
     
@@ -144,7 +132,6 @@ def tab_prediction():
     with col2:
         st.subheader("💼 Étape 2 : Sélectionner une offre")
         
-        # Lister les offres disponibles dans data/jobs_corpus
         jobs_dir = DATA_PATH / "jobs_corpus"
         job_options = [f.name for f in jobs_dir.glob("*.pdf")] if jobs_dir.exists() else []
         if not job_options:
@@ -159,7 +146,6 @@ def tab_prediction():
     col_btn1, col_btn2 = st.columns(2)
     
     with col_btn1:
-        # Bouton simple : Score seulement
         if st.button("🔢 Calculer le score seulement", use_container_width=True):
             if uploaded_cv and selected_job:
                 result = call_api_predict(uploaded_cv, selected_job, trigger_n8n=False)
@@ -169,7 +155,6 @@ def tab_prediction():
                 st.warning("⚠️ Veuillez sélectionner un CV et une offre")
 
     with col_btn2:
-        # Bouton complet : Score + n8n
         if st.button("🚀 Lancer l'analyse et notification", use_container_width=True, type="primary"):
             if uploaded_cv and selected_job:
                 result = call_api_predict(uploaded_cv, selected_job, trigger_n8n=True)
@@ -182,7 +167,6 @@ def display_prediction_results(result, uploaded_cv, selected_job, triggered_n8n=
     """Affiche les résultats de la prédiction et gère l'historique."""
     score = result.get('similarity_score', 0)
     
-    # Affichage du score
     st.markdown("---")
     col_score1, col_score2 = st.columns(2)
     
@@ -201,7 +185,6 @@ def display_prediction_results(result, uploaded_cv, selected_job, triggered_n8n=
         else:
             st.warning("🔴 **Correspondance faible**")
     
-    # Sauvegarde dans l'historique
     history = load_history()
     new_entry = {
         "timestamp": datetime.now().isoformat(),
@@ -215,7 +198,6 @@ def display_prediction_results(result, uploaded_cv, selected_job, triggered_n8n=
     
     st.success("✅ Analyse sauvegardée dans l'historique")
     
-    # Feedback workflow seulement si déclenché
     if triggered_n8n:
         st.markdown("---")
         st.markdown("### 📨 Workflow Validation")
@@ -223,15 +205,11 @@ def display_prediction_results(result, uploaded_cv, selected_job, triggered_n8n=
     else:
         st.info("ℹ️ Note : Le workflow d'explication n8n n'a pas été lancé pour ce calcul rapide.")
 
-# ============================================================================
-# 📈 ONGLET 2 : VISUALISATION PCA 2D
-# ============================================================================
 
 def tab_pca_visualization():
     st.header("📈 Visualisation PCA Interactive")
     st.markdown("Explorez les embeddings des offres dans un espace 2D")
     
-    # Charger les données
     ref_data = load_reference_data()
     
     if ref_data is None:
@@ -245,7 +223,6 @@ def tab_pca_visualization():
         st.warning("⚠️ Colonnes PCA manquantes dans ref_data.csv : " + ", ".join(missing_cols))
         return
 
-    # Préparer les points déjà projetés en PCA depuis le dataset
     jobs = (
         ref_data.groupby(["job_text", "job_pca_1", "job_pca_2"], as_index=False)["similarity_score"]
         .mean()
@@ -277,7 +254,6 @@ def tab_pca_visualization():
     df_pca["categorie"] = df_pca["label"].apply(infer_category)
     df_pca["label_court"] = df_pca["label"].str.slice(0, 80)
     
-    # Options d'affichage
     col1, col2, col3 = st.columns(3)
     with col1:
         color_by = st.selectbox("Colorer par :", ["Type document", "Score moyen", "Catégorie"])
@@ -294,7 +270,6 @@ def tab_pca_visualization():
     elif color_by == "Catégorie":
         color_column = "categorie"
 
-    # Créer le graphique Plotly
     fig = px.scatter(
         df_pca,
         x='pca_x',
@@ -325,7 +300,6 @@ def tab_pca_visualization():
     
     st.plotly_chart(fig, use_container_width=True)
     
-    # Statistiques
     st.markdown("### 📊 Statistiques")
     col_stats1, col_stats2, col_stats3 = st.columns(3)
     
@@ -340,9 +314,6 @@ def tab_pca_visualization():
     with col_stats3:
         st.metric("Nombre de CV", len(cvs))
 
-# ============================================================================
-# 📝 ONGLET 3 : HISTORIQUE DES ANALYSES
-# ============================================================================
 
 def tab_history():
     st.header("📝 Historique des Analyses")
@@ -354,12 +325,10 @@ def tab_history():
         st.markdown("Lancez une analyse depuis l'onglet **Prédiction** pour commencer.")
         return
     
-    # Convertir en DataFrame
     df_history = pd.DataFrame(history)
     df_history['timestamp'] = pd.to_datetime(df_history['timestamp'])
     df_history = df_history.sort_values('timestamp', ascending=False)
     
-    # Options de filtrage
     col_filter1, col_filter2 = st.columns(2)
     
     with col_filter1:
@@ -368,7 +337,6 @@ def tab_history():
     with col_filter2:
         score_min = st.slider("Score minimum", 0.0, 1.0, 0.0)
     
-    # Appliquer les filtres
     df_filtered = df_history[
         (df_history['status'].isin(status_filter)) &
         (df_history['score'] >= score_min)
@@ -376,7 +344,6 @@ def tab_history():
     
     st.divider()
     
-    # Statistiques globales
     col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
     
     with col_stat1:
@@ -391,10 +358,8 @@ def tab_history():
     
     st.divider()
     
-    # Tableau des analyses
     st.subheader("📋 Liste des analyses")
     
-    # Formater le DataFrame pour l'affichage
     display_df = df_filtered.copy()
     display_df['timestamp'] = display_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
     display_df['score'] = display_df['score'].apply(lambda x: f"{x:.2%}")
@@ -404,7 +369,6 @@ def tab_history():
     
     st.divider()
     
-    # Visualisations
     col_viz1, col_viz2 = st.columns(2)
     
     with col_viz1:
@@ -430,7 +394,6 @@ def tab_history():
         )
         st.plotly_chart(fig_dist, use_container_width=True)
     
-    # Options de gestion
     st.divider()
     col_manage1, col_manage2, col_manage3 = st.columns(3)
     
@@ -470,12 +433,7 @@ def tab_history():
                 st.session_state.confirm_clear = True
                 st.rerun()
 
-# ============================================================================
-# 📱 INTERFACE PRINCIPALE
-# ============================================================================
-
 def main():
-    # Sidebar
     with st.sidebar:
         st.title("⚙️ Configuration")
         st.markdown("---")
@@ -493,7 +451,6 @@ def main():
         st.caption("Dashboard Matching CV-Offres v1.0")
         st.caption("Développé pour le projet n8n automation")
     
-    # Onglets principaux
     tab1, tab2, tab3 = st.tabs([
         "🎯 Prédiction",
         "📈 Visualisation PCA",

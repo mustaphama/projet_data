@@ -72,12 +72,17 @@ Pour tester la boucle de matching et feedback avec n8n, lancez les deux commande
 
 **A. Serveur Backend (FastAPI)**
 ```bash
-python serving/api.py
+docker compose -f serving/docker-compose.yml up
 ```
 
 **B. Application Frontend (Streamlit)**
 ```bash
-streamlit run webapp/app.py
+docker compose -f webapp/docker-compose.yml up
+```
+
+**C. Monitoring (Evidently)**
+```bash
+docker compose -f monitoring/docker-compose.yml up
 ```
 
 ---
@@ -112,3 +117,14 @@ projet_data/
 
 docker volume create n8n_data
 docker run -it --rm --name n8n -p 5678:5678 -v n8n_data:/home/node/.n8n docker.n8n.io/n8nio/n8n
+
+
+commande de génération de rapport:
+```
+docker exec evidently-reporting python project.py
+```
+
+commande pour lancer n8n  correctement:
+```
+docker run -d --name n8n -p 5678:5678 --network mon_reseau_projet -v n8n_data:/home/node/.n8n docker.n8n.io/n8nio/n8n
+```

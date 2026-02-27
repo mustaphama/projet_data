@@ -8,9 +8,6 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.decomposition import PCA
 
-# Membre 1 (Albin) : Script de réentraînement du modèle.
-# Fusionne les données initiales avec les feedbacks de production.
-
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - [%(levelname)s] - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -38,8 +35,7 @@ def retrain_model():
             feedbacks_positifs = df_production[df_production["user_feedback"] == True]
             logger.info(f"Intégration de {len(feedbacks_positifs)} nouveaux exemples validés.")
             donnees_globales = pd.concat([donnees_globales, feedbacks_positifs], ignore_index=True)
-    
-    # Chargement du modèle SentenceTransformer
+
     nom_modele = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     modele_nlp = SentenceTransformer(nom_modele)
     
@@ -47,14 +43,12 @@ def retrain_model():
     embeddings_cv = modele_nlp.encode(donnees_globales["cv_text"].tolist())
     embeddings_offres = modele_nlp.encode(donnees_globales["job_text"].tolist())
     
-    # Calcul des scores de similarité mis à jour
     scores = [float(cosine_similarity([c], [j])[0][0]) for c, j in zip(embeddings_cv, embeddings_offres)]
     donnees_globales["similarity_score"] = scores
     
     score_moyen = np.mean(scores)
     logger.info(f"Score de similarité moyen après mise à jour : {score_moyen:.4f}")
     
-    # Calcul des métriques de performance globales
     if not donnees_globales["user_feedback"].isna().all():
         seuil_validation = 0.4
         valeurs_reelles = donnees_globales["user_feedback"].fillna(False).astype(bool).tolist()
@@ -69,19 +63,16 @@ def retrain_model():
         
         logger.info(f"Métriques de stabilité au seuil {seuil_validation} : Précision={precision:.2f}, Rappel={rappel:.2f}")
 
-    # Mise à jour de la projection PCA
     logger.info("Recalcul de la projection PCA sur les nouvelles données...")
     embeddings_combines = np.vstack([embeddings_cv, embeddings_offres])
     pca_nouveau = PCA(n_components=2)
     pca_nouveau.fit(embeddings_combines)
     
-    # Transformation des coordonnées
     coordonnees_cv = pca_nouveau.transform(embeddings_cv)
     coordonnees_offres = pca_nouveau.transform(embeddings_offres)
     donnees_globales['cv_pca_1'], donnees_globales['cv_pca_2'] = coordonnees_cv[:, 0], coordonnees_cv[:, 1]
     donnees_globales['job_pca_1'], donnees_globales['job_pca_2'] = coordonnees_offres[:, 0], coordonnees_offres[:, 1]
     
-    # Sauvegarde des artifacts
     if not os.path.exists(dossier_artifacts):
         os.makedirs(dossier_artifacts)
     
@@ -95,7 +86,6 @@ def retrain_model():
     with open(chemin_pickle_pca, 'wb') as f:
         pickle.dump(pca_nouveau, f)
         
-    # Mise à jour du fichier de référence pour les itérations futures
     donnees_globales.to_csv(chemin_csv_reference, index=False)
     
     logger.info("Réentraînement terminé avec succès.")

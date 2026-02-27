@@ -18,19 +18,28 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from pydantic import BaseModel
 
-# Config
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+SEUIL_K = 5
+
 chemin_racine = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+chemin_racine = "/app"
 DOSSER_ARTIFACTS = os.path.join(chemin_racine, 'artifacts')
 CHEMIN_PICKLE_MODELE = os.path.join(DOSSER_ARTIFACTS, 'model.pickle')
 CHEMIN_PENDING_PREDICTIONS = os.path.join(chemin_racine, "data", "pending_predictions.json")
 DEFAULT_MODEL_NAME = 'paraphrase-multilingual-MiniLM-L12-v2'
 
-# URL du webhook n8n (ex: http://localhost:5678/webhook/explain-score)
+CHEMIN_PCA = os.path.join(DOSSER_ARTIFACTS, 'pca.pickle')
+
+def load_pca():
+    if os.path.exists(CHEMIN_PCA):
+        with open(CHEMIN_PCA, 'rb') as f:
+            return pickle.load(f)
+    return None
+
 N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'http://localhost:5678/webhook/explain-score')
-N8N_TIMEOUT = 5  # sec pour l'appel n8n
+N8N_TIMEOUT = 5  
 
 app = FastAPI(title="Serving API - Real Matching")
 
@@ -67,34 +76,27 @@ class RequeteFeedback(BaseModel):
     job_text: str = ""
     similarity_score: float = 0.0
 
-# mots vides simple (tu peux compléter)
 MOTS_VIDES_FR = {"le", "la", "les", "un", "une", "des", "et", "en", "pour", "par", "dans", "sur", "avec"}
 MOTS_VIDES_EN = {"the", "and", "for", "with", "from", "this", "that", "these", "those"}
 TOUS_MOTS_VIDES = MOTS_VIDES_FR.union(MOTS_VIDES_EN)
 
-# Chargement du modèle (global, une seule fois)
 def load_model():
-    # Try load pickled model if present (pickled dict with "model" or direct SentenceTransformer)
     if os.path.exists(CHEMIN_PICKLE_MODELE):
         try:
             with open(CHEMIN_PICKLE_MODELE, 'rb') as f:
                 obj = pickle.load(f)
-                # Cas où on a dict {"model": modele_nlp, ...}
                 if isinstance(obj, dict) and "model" in obj:
                     logger.info("Chargement du modèle depuis model.pickle (clé 'model').")
                     return obj["model"]
-                # Cas où pickle est directement le modèle
                 logger.info("Chargement du modèle picklé depuis model.pickle.")
                 return obj
         except Exception as e:
             logger.warning(f"Impossible de charger model.pickle ({e}), on retombe sur SentenceTransformer('{DEFAULT_MODEL_NAME}').")
-    # Fallback : créer une instance
     logger.info(f"Initialisation SentenceTransformer('{DEFAULT_MODEL_NAME}')")
     return SentenceTransformer(DEFAULT_MODEL_NAME)
 
 MODELE_NLP = load_model()
-
-# utilitaires extraction/cleanup (repris et simplifiés de scripts/init_model.py)
+PCA_MODELE = load_pca()
 def extraire_texte_pdf_bytes(contenu_bytes: bytes) -> str:
     try:
         textes = []
@@ -120,10 +122,8 @@ def nettoyer_texte(texte: str) -> str:
     return " ".join(mots)
 
 def compute_similarity(text_a: str, text_b: str) -> float:
-    # encode retourne np.array ; on force convert_to_numpy pour cohérence
     emb_a = MODELE_NLP.encode([text_a], convert_to_numpy=True)
     emb_b = MODELE_NLP.encode([text_b], convert_to_numpy=True)
-    # cosine_similarity attend matrices 2D
     score = float(cosine_similarity(emb_a, emb_b)[0][0])
     return score
 
@@ -147,7 +147,6 @@ async def prediction_real(
         if not texte_cv or len(texte_cv) < 20:
             raise HTTPException(status_code=400, detail="Texte CV trop court ou non extrait correctement")
         
-        # job_text prend la priorité si fourni
         if job_text:
             texte_offre_raw = job_text
         elif id_offre:
@@ -164,7 +163,6 @@ async def prediction_real(
         texte_offre = nettoyer_texte(texte_offre_raw)
         score = compute_similarity(texte_cv, texte_offre)
 
-        # Générer un ID unique pour cette prédiction
         pred_id = str(uuid.uuid4())
         save_pending_prediction(pred_id, {
             "cv_text": texte_cv_raw,
@@ -172,7 +170,6 @@ async def prediction_real(
             "score": score
         })
 
-        # Appel vers n8n seulement si demandé
         if trigger_n8n:
             payload = {
                 "prediction_id": pred_id,
@@ -199,14 +196,19 @@ async def prediction_real(
     except Exception as e:
         logger.exception("Erreur dans /predict")
         raise HTTPException(status_code=500, detail=str(e))
+    
 
-# Endpoint de feedback
+@app.get("/")
+def health_check():
+    return {"status": "L'API fonctionne parfaitement !"}
+
 @app.post("/feedback")
 def recevoir_feedback(donnees: RequeteFeedback):
+    global MODELE_NLP, PCA_MODELE
+
     chemin_prod = os.path.join(chemin_racine, "data", "prod_data.csv")
     os.makedirs(os.path.join(chemin_racine, "data"), exist_ok=True)
     
-    # Si on a un prediction_id, on récupère les textes complets stockés lors du /predict
     cv_text = donnees.cv_text
     job_text = donnees.job_text
     score = donnees.similarity_score
@@ -218,14 +220,24 @@ def recevoir_feedback(donnees: RequeteFeedback):
             job_text = pending.get("job_text", job_text)
             score = pending.get("score", score)
             logger.info(f"Données récupérées pour prediction_id: {donnees.prediction_id}")
-        else:
-            logger.warning(f"prediction_id: {donnees.prediction_id} non trouvé dans le stockage temporaire")
+
+    coord_cv = [0.0, 0.0]
+    coord_job = [0.0, 0.0]
+    if PCA_MODELE is not None:
+        emb_cv = MODELE_NLP.encode([cv_text])
+        emb_job = MODELE_NLP.encode([job_text])
+        coord_cv = PCA_MODELE.transform(emb_cv)[0]
+        coord_job = PCA_MODELE.transform(emb_job)[0]
 
     nouvelle_ligne = {
         'cv_text': cv_text,
         'job_text': job_text,
         'similarity_score': score,
-        'user_feedback': donnees.user_feedback,
+        'cv_pca_1': coord_cv[0],
+        'cv_pca_2': coord_cv[1],
+        'job_pca_1': coord_job[0],
+        'job_pca_2': coord_job[1],
+        'user_feedback': 1 if donnees.user_feedback else 0, 
         'timestamp': pd.Timestamp.now().isoformat()
     }
     
@@ -241,7 +253,6 @@ def recevoir_feedback(donnees: RequeteFeedback):
         logger.exception("Erreur lors de l'écriture du feedback CSV")
         return {"statut": "erreur", "message": str(e)}
 
-    # -- LOGIQUE DE SEUIL DE RÉENTRAÎNEMENT --
     try:
         df_prod = pd.read_csv(chemin_prod)
         nb_lignes = len(df_prod)
@@ -252,9 +263,9 @@ def recevoir_feedback(donnees: RequeteFeedback):
             chemin_script = os.path.join(chemin_racine, "scripts", "retrain_model.py")
             subprocess.run(["python", chemin_script], check=True)
             
-            # Rechargement à chaud du modèle après entraînement
-            global MODELE_NLP
+            
             MODELE_NLP = load_model()
+            PCA_MODELE = load_pca() 
             logger.info("Réentraînement terminé et modèle mis à jour en production !")
             
     except subprocess.CalledProcessError as e:
@@ -266,8 +277,17 @@ def recevoir_feedback(donnees: RequeteFeedback):
 
 
 if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    host = os.environ.get("HOST", "127.0.0.1")
-    logger.info(f"Démarrage uvicorn sur {host}:{port}")
-    uvicorn.run("api:app", host="127.0.0.1", port=8000, reload=True)
+    try:
+        import uvicorn
+        port = int(os.environ.get("PORT", 8000))
+        reload_flag = os.environ.get("UVICORN_RELOAD", "0") == "1"
+        host = os.environ.get("HOST", "0.0.0.0") 
+        logger.info(f"Démarrage uvicorn sur {host}:{port} (reload requested={reload_flag})")
+        
+        if reload_flag:
+            logger.warning("Reload demandé mais désactivé...")
+        
+        uvicorn.run("api:app", host="0.0.0.0", port=8000) 
+        
+    except Exception as e:
+        logger.error(f"Erreur au lancement: {e}")
