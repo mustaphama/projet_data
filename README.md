@@ -1,13 +1,13 @@
-# 🧠 End-to-End AI Matching Platform (MLOps Engine)
+# End-to-End AI Matching Platform (MLOps Engine)
 
 Ce projet est le **moteur d'Intelligence Artificielle et l'infrastructure MLOps** permettant d'automatiser le processus de matching sémantique entre des CV (format PDF) et des offres d'emploi. Il utilise des techniques avancées de NLP (SentenceTransformers), une API de serving robuste, du monitoring de dérive (data drift) et une boucle d'automatisation des retours.
 
-> 💡 **Interface Web / Application Client**  
+>  **Interface Web / Application Client**  
 > Ce dépôt se concentre sur le backend ML et l'orchestration. L'application principale (Django/React) qui consomme cette API est disponible ici :[**Albin0903/codev**](https://github.com/Albin0903/codev).
 
 ---
 
-## ✨ Architecture & Fonctionnalités
+## Architecture & Fonctionnalités
 
 Ce pipeline couvre l'intégralité du cycle de vie du modèle ML en production :
 
@@ -19,7 +19,7 @@ Ce pipeline couvre l'intégralité du cycle de vie du modèle ML en production :
 
 ---
 
-## 🚀 Guide de Démarrage
+## Guide de Démarrage
 
 ### 1. Déploiement via Docker (Recommandé)
 
